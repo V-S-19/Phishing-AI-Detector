@@ -1,0 +1,22 @@
+# requirements.txt
+# Core UI & app framework
+streamlit>=1.38.0
+
+# NLP - Message / Email / SMS analysis
+transformers>=4.44.0
+torch>=2.3.0                  # required for most Hugging Face models
+
+# Machine Learning - URL classifier + anomaly detection
+scikit-learn>=1.5.0
+xgboost>=2.1.0
+joblib>=1.4.0
+
+# URL parsing & feature extraction
+tldextract>=5.1.0
+urllib3>=2.2.0                # often needed with requests / URL handling
+
+# API calls (e.g. Google Safe Browsing if you add it)
+requests>=2.32.0
+
+# Optional but useful for debugging / progress bars
+tqdm>=4.66.0
