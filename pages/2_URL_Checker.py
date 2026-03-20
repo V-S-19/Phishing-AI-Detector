@@ -1,4 +1,6 @@
 import streamlit as st
+from backend.url_analyzer import analyze_url
+from backend.alert_engine import generate_alert
 
 st.set_page_config(
     page_title="URL Checker - PhishingHybridDetector",
@@ -8,18 +10,9 @@ st.set_page_config(
 
 hide_right_header = """
     <style>
-    /* Hide Deploy button */
-    .stAppDeployButton {
-        display: none !important;
-    }
-    /* Hide 3-dots menu */
-    #MainMenu {
-        visibility: hidden;
-    }
-    /* Keep the left header (logo + title) visible */
-    header[data-testid="stHeader"] {
-        visibility: visible;
-    }
+    .stAppDeployButton { display: none !important; }
+    #MainMenu { visibility: hidden; }
+    header[data-testid="stHeader"] { visibility: visible; }
     </style>
 """
 st.markdown(hide_right_header, unsafe_allow_html=True)
@@ -28,7 +21,6 @@ with st.sidebar:
     st.title("🛡️ PhishingHybridDetector")
     st.markdown("**Hybrid Phishing Detection**")
     st.markdown("---")
-    
     st.markdown("### Modules")
     st.page_link("app.py", label="🏠 Home")
     st.page_link("pages/1_Message_Analyzer.py", label=" Message Analyzer", icon="📩")
@@ -36,8 +28,6 @@ with st.sidebar:
     st.page_link("pages/4_Alerts_Dashboard.py", label=" Alerts Dashboard", icon="🚨")
     st.markdown("---")
     st.title("🔗 URL / Domain Checker")
-    st.markdown("Verify whether a link is likely to be malicious or phishing-related.")
-
     st.markdown("""
     <style>
     [data-testid="stSidebarNav"] {
@@ -52,27 +42,21 @@ if st.button("Check URL", type="primary", use_container_width=True):
     if not url.strip():
         st.warning("Please enter a URL.")
     else:
-        with st.status("Analyzing URL...", expanded=True) as status:
-            st.write("Checking domain age...")
-            st.write("Looking up SSL certificate...")
-            st.write("Scanning against known phishing feeds...")
-            st.write("Performing typo-squatting detection...")
-            status.update(label="Analysis complete!", state="complete", expanded=False)
+        with st.spinner("Analyzing URL..."):
+            # ── Real analysis ─────────────────────────────────────
+            result = analyze_url(url)
+            alert = generate_alert([result])
 
-        col_left, col_right = st.columns(2)
-        with col_left:
-            st.error("**HIGH RISK** – Phishing probability: 92%")
-        with col_right:
-            st.success("**Safe signals found**: 3 / 18")
+        # ── Show result ───────────────────────────────────────────
+        level = alert["alert_level"]
+        emoji = "✅" if "SAFE" in level else "⚠️" if "MEDIUM" in level else "🚨"
 
-        st.divider()
-        with st.expander("Detailed Report"):
-            st.markdown("""
-            - Domain registered: **7 days ago** 🚩  
-            - Uses free hosting (000webhost-like) 🚩  
-            - SSL: Let's Encrypt (common in phishing)  
-            - Domain similar to: `chase.com`, `paypal.com`  
-            - Blacklist status: **Detected in 4 phishing feeds**
-            """)
+        st.markdown(f"### {emoji} **{level}**", unsafe_allow_html=True)
+        st.metric("Risk Score", alert["total_score"])
+
+        with st.expander("Detailed Report", expanded=True):
+            for d in alert["details"]:
+                reasons = ", ".join(d["reasons"]) if d["reasons"] else "no specific indicators"
+                st.markdown(f"- **{d['type'].title()}**: {d['risk']} (score {d['score']})  \n  {reasons}")
 
 st.caption("Last updated database: March 18, 2026")

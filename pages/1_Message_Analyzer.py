@@ -1,4 +1,6 @@
 import streamlit as st
+from backend.nlp_detector import analyze_message
+from backend.alert_engine import generate_alert
 
 st.set_page_config(
     page_title="Message Analyzer - PhishingHybridDetector",
@@ -6,26 +8,17 @@ st.set_page_config(
     layout="wide"
 )
 
-
+# ─── Hide deploy/menu stuff ────────────────────────────────────────
 hide_right_header = """
     <style>
-    /* Hide Deploy button */
-    .stAppDeployButton {
-        display: none !important;
-    }
-    /* Hide 3-dots menu */
-    #MainMenu {
-        visibility: hidden;
-    }
-    /* Keep the left header (logo + title) visible */
-    header[data-testid="stHeader"] {
-        visibility: visible;
-    }
+    .stAppDeployButton { display: none !important; }
+    #MainMenu { visibility: hidden; }
+    header[data-testid="stHeader"] { visibility: visible; }
     </style>
 """
 st.markdown(hide_right_header, unsafe_allow_html=True)
 
-# ─── SIDEBAR ────────────────────────────────────────
+# ─── SIDEBAR ────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🛡️ PhishingHybridDetector")
     st.markdown("**Hybrid Phishing Detection**")
@@ -35,10 +28,8 @@ with st.sidebar:
     st.page_link("pages/2_URL_Checker.py", label=" URL Checker", icon="🔗")
     st.page_link("pages/3_Behavior_Check.py", label=" Behavior Check", icon="🕵️")
     st.page_link("pages/4_Alerts_Dashboard.py", label=" Alerts Dashboard", icon="🚨")
-
     st.markdown("---")
     st.info("Analyze suspicious emails, SMS, WhatsApp messages")
-
     st.markdown("""
     <style>
     [data-testid="stSidebarNav"] {
@@ -47,7 +38,7 @@ with st.sidebar:
     </style>
 """, unsafe_allow_html=True)
 
-# ─── MAIN CONTENT ───────────────────────────────────
+# ─── MAIN CONTENT ───────────────────────────────────────────────────
 st.title("📩 Message / Text Analyzer")
 st.markdown("Paste suspicious message content to extract indicators of phishing.")
 
@@ -64,12 +55,24 @@ with col1:
         if not message.strip():
             st.warning("Please enter some text to analyze.")
         else:
-            st.success("Analysis started... (placeholder result)")
+            with st.spinner("Analyzing message..."):
+                # ── Real analysis ─────────────────────────────────────
+                single_result = analyze_message(message)
+                final_alert = generate_alert([single_result])
+
+            # ── Present result ────────────────────────────────────────
+            level = final_alert["alert_level"]
+            emoji = "✅" if "SAFE" in level else "⚠️" if "MEDIUM" in level else "🚨"
+            color = "green" if "SAFE" in level else "orange" if "MEDIUM" in level else "red"
+
+            st.markdown(f"### {emoji} **{level}**", unsafe_allow_html=True)
+            st.metric("Total Risk Score", final_alert["total_score"])
+
             with st.expander("Detected Features", expanded=True):
-                st.write("• Suspicious urgency language detected")
-                st.write("• impersonation attempt (bank/customer service)")
-                st.write("• 1 external link found")
-                st.markdown("Confidence: **High risk** ⚠️")
+                for item in final_alert["details"]:
+                    r = item["risk"]
+                    reason_str = ", ".join(item["reasons"]) if item["reasons"] else "no specific reason"
+                    st.markdown(f"• **{item['type'].title()}**: {r} (score {item['score']}) → {reason_str}")
 
 with col2:
     st.subheader("Quick Statistics")
@@ -77,4 +80,3 @@ with col2:
     st.metric("Phishing Detected", "38", "+7", delta_color="inverse")
     st.progress(0.68)
     st.caption("Current model confidence threshold")
-

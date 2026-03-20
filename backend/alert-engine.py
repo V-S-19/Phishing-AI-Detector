@@ -1,10 +1,10 @@
 def generate_alert(results):
     total_score = sum(r["score"] for r in results)
 
-    if total_score >= 5:
-       level = "🚨 HIGH ALERT"
-    elif total_score >= 3:
-       level = "⚠️ MEDIUM ALERT"
+    if total_score >= 7:
+        level = "🚨 HIGH ALERT"
+    elif total_score >= 4:
+        level = "⚠️ MEDIUM ALERT"
     else:
         level = "✅ SAFE"
 
