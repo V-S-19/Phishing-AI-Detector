@@ -3,6 +3,7 @@ from text_model import train_text_model
 
 
 def main():
+    print("Training started...")
     model, vectorizer = train_text_model("data/spam.csv")
 
     joblib.dump(model, "models/text_model.pkl")

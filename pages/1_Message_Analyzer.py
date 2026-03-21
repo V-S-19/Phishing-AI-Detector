@@ -1,6 +1,7 @@
 import streamlit as st
 from backend.nlp_detector import analyze_message
 from backend.alert_engine import generate_alert
+from models.predict import predict_text
 
 st.set_page_config(
     page_title="Message Analyzer - PhishingHybridDetector",
@@ -8,7 +9,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# ─── Hide deploy/menu stuff ────────────────────────────────────────
 hide_right_header = """
     <style>
     .stAppDeployButton { display: none !important; }
@@ -18,7 +18,6 @@ hide_right_header = """
 """
 st.markdown(hide_right_header, unsafe_allow_html=True)
 
-# ─── SIDEBAR ────────────────────────────────────────────────────────
 with st.sidebar:
     st.title("🛡️ PhishingHybridDetector")
     st.markdown("**Hybrid Phishing Detection**")
@@ -38,7 +37,6 @@ with st.sidebar:
     </style>
 """, unsafe_allow_html=True)
 
-# ─── MAIN CONTENT ───────────────────────────────────────────────────
 st.title("📩 Message / Text Analyzer")
 st.markdown("Paste suspicious message content to extract indicators of phishing.")
 
@@ -56,17 +54,44 @@ with col1:
             st.warning("Please enter some text to analyze.")
         else:
             with st.spinner("Analyzing message..."):
-                # ── Real analysis ─────────────────────────────────────
                 single_result = analyze_message(message)
                 final_alert = generate_alert([single_result])
+                ml_result = predict_text(message)
 
-            # ── Present result ────────────────────────────────────────
-            level = final_alert["alert_level"]
-            emoji = "✅" if "SAFE" in level else "⚠️" if "MEDIUM" in level else "🚨"
-            color = "green" if "SAFE" in level else "orange" if "MEDIUM" in level else "red"
+            rule_level = final_alert["alert_level"]
+            rule_score = final_alert["total_score"]
 
-            st.markdown(f"### {emoji} **{level}**", unsafe_allow_html=True)
-            st.metric("Total Risk Score", final_alert["total_score"])
+            # Hybrid final decision
+            if ml_result == "Phishing Message" and rule_score >= 3:
+                hybrid_level = "🚨 HIGH ALERT"
+                hybrid_color_box = "error"
+            elif ml_result == "Phishing Message" or rule_score >= 3:
+                hybrid_level = "⚠️ MEDIUM ALERT"
+                hybrid_color_box = "warning"
+            elif rule_score >= 1:
+                hybrid_level = "🟡 LOW ALERT"
+                hybrid_color_box = "info"
+            else:
+                hybrid_level = "✅ SAFE"
+                hybrid_color_box = "success"
+
+            # Final result
+            st.markdown("### 🔍 Final Hybrid Decision")
+            if hybrid_color_box == "error":
+                st.error(hybrid_level)
+            elif hybrid_color_box == "warning":
+                st.warning(hybrid_level)
+            elif hybrid_color_box == "info":
+                st.info(hybrid_level)
+            else:
+                st.success(hybrid_level)
+
+            st.metric("Total Risk Score", rule_score)
+
+            # Breakdown
+            st.markdown("### 📊 Analysis Breakdown")
+            st.write(f"**Rule-Based Alert:** {rule_level}")
+            st.write(f"**ML Prediction:** {ml_result}")
 
             with st.expander("Detected Features", expanded=True):
                 for item in final_alert["details"]:
